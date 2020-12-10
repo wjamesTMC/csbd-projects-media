@@ -44,17 +44,85 @@ library(googlesheets)
 # CCC File
 #
 
-inp_data <- read.csv("media_test_data.csv", stringsAsFactors = FALSE)
+inp_dat <- read.csv("Cases.csv", stringsAsFactors = FALSE)
+str(inp_data)
 
-#
 # Keep selected fields
 #
 
-wkg_dat <- inp_data %>% select(Id, Subject, Description)
-# str(wkg_dat)
+wkg_dat <- inp_dat %>% select(Parent.Case.ID, Case.Origin, Description, Subject, Subject...Description, Case.Answer)
+str(wkg_dat)
 
-text_field <- wkg_dat[1,2]
-word_list <- strsplit(text_field, " ")
+unq_case_origins <- unique(wkg_dat$Case.Origin) # 56 unique case origins
+unq_subjects <- unique(wkg_dat$Subject)         # 59084 unique subjects
+
+# 
+# Now we know that we have to mine words from the subject and description fields
+# We need to build a dataframe that has the following fields:
+#     word
+#     Number of occurrences in the subject fields
+#     number of occureences in the description fields
+#     total number of occurrences
+#     media word Y / N
+#     occurrence ranking
+#     media word occurrence ranking
+#
+
+#
+# Detect instances where a case has a media term
+#
+detect_media <- c("audio",
+                  "digital",
+                  "CD",
+                  "telephone",
+                  "iTune")
+
+# Check each of the words against the Description fields
+Pattern = paste(detect_media, collapse = "|")
+result <- grepl(Pattern, wkg_dat$Description)
+
+# Count the number of TRUE results
+ntrues <- table(result)["TRUE"]
+
+# Build dataframe
+vocab_df <- data.frame("wkg_dat_id" = ntrues,
+                       "seq_id"     = ntrues,
+                       "desc"       = ntrues,
+                       "subj"       = ntrues)
+
+# If a word does show up, mark it with a "1" and save off the result
+for(i in 1:nrow(wkg_dat)) {
+     if(result[i] == TRUE) {
+          vocab_df[i, 1]   <- wkg_dat$Parent.Case.ID[i]
+          vocab_df[i, 2]   <- i
+          vocab_df[i, 3]   <- wkg_dat$Description[i]
+          vocab_df[i, 4]   <- wkg_dat$Subject[i]
+     }
+}
+# Loop through and create the list of word occurrences
+
+#
+# Now we need to select the words that are related to media and go back 
+# through the list and tag them, and then run the totals for occurrences
+# and media word occurrences
+#
+
+# <code>
+
+# 
+# Now we create a list of the case IDs that have media related words in them
+# and narrow down the list of cases to those that are truly media related and
+# not just containing incidental media words
+#
+
+# <code>
+
+#
+# Depending on what we find at this point, we can somehow categorize the cases 
+# into a number of subject catgories
+
+# <code>
+
 
 # Remove duplicates and blank descriptions, if any
 e_dat <- e_dat %>% filter(C_Type != "Duplicate", C_Type != "")
