@@ -45,28 +45,23 @@ library(googlesheets)
 #
 
 inp_dat <- read.csv("Cases.csv", stringsAsFactors = FALSE)
-str(inp_data)
+# str(inp_data)
+
+# Reduce the file size to just 50 cases to speed up work
+inp_dat <- inp_dat[1:50, ]  
 
 # Keep selected fields
-#
+wkg_dat <- inp_dat %>% select(Parent.Case.ID, Case.Origin, Description, Subject)
+# str(wkg_dat)
 
-wkg_dat <- inp_dat %>% select(Parent.Case.ID, Case.Origin, Description, Subject, Subject...Description, Case.Answer)
-str(wkg_dat)
+# Create a column to identify cases we want to keep
+media_case <- c(1:nrow(wkg_dat))
 
-unq_case_origins <- unique(wkg_dat$Case.Origin) # 56 unique case origins
-unq_subjects <- unique(wkg_dat$Subject)         # 59084 unique subjects
+# Add new column to data
+wkg_dat <- cbind(wkg_dat, mc = media_case)     
 
-# 
-# Now we know that we have to mine words from the subject and description fields
-# We need to build a dataframe that has the following fields:
-#     word
-#     Number of occurrences in the subject fields
-#     number of occureences in the description fields
-#     total number of occurrences
-#     media word Y / N
-#     occurrence ranking
-#     media word occurrence ranking
-#
+# unq_case_origins <- unique(wkg_dat$Case.Origin) # 56 unique case origins
+# unq_subjects <- unique(wkg_dat$Subject)         # 59084 unique subjects
 
 #
 # Detect instances where a case has a media term
@@ -75,7 +70,11 @@ detect_media <- c("audio",
                   "digital",
                   "CD",
                   "telephone",
-                  "iTune")
+                  "iTune",
+                  "Spotify",
+                  "playlist",
+                  "Alexa",
+                  "smart speaker")
 
 # Check each of the words against the Description fields
 Pattern = paste(detect_media, collapse = "|")
@@ -85,21 +84,28 @@ result <- grepl(Pattern, wkg_dat$Description)
 ntrues <- table(result)["TRUE"]
 
 # Build dataframe
-vocab_df <- data.frame("wkg_dat_id" = ntrues,
-                       "seq_id"     = ntrues,
-                       "desc"       = ntrues,
-                       "subj"       = ntrues)
+vocab_df <- data.frame("wkg_dat_id"    = ntrues,
+                       "seq_id"        = ntrues,
+                       "desc"          = ntrues,
+                       "subj"          = ntrues)
 
-# If a word does show up, mark it with a "1" and save off the result
+# If a word does show up, save off the result
+
 for(i in 1:nrow(wkg_dat)) {
      if(result[i] == TRUE) {
           vocab_df[i, 1]   <- wkg_dat$Parent.Case.ID[i]
           vocab_df[i, 2]   <- i
           vocab_df[i, 3]   <- wkg_dat$Description[i]
           vocab_df[i, 4]   <- wkg_dat$Subject[i]
-     }
+     } 
 }
-# Loop through and create the list of word occurrences
+
+vocab_df <- vocab_df[complete.cases(vocab_df), ]
+
+# Write out a file to examine it
+write.csv(vocab_df,"CCC_results.csv", row.names = FALSE)
+
+##### Loop through and create the list of word occurrences
 
 #
 # Now we need to select the words that are related to media and go back 
