@@ -1,19 +1,25 @@
 ##############################################################################
 #
-# Media Analysis - CCC Vocabulary extractioN
+# Media Analysis - CCC Case Vocabulary extractioN
 # Bill James / jamesw@csps.com
 #
 # Files:  https://github.com/wjamesTMC/csbd-projects-media.git
 #
 ##############################################################################
 
-#-----------------------------------------------------------------------------
+#*****************************************************************************
 #
-# Library setups
+# This program takes an input file of CCC cases and does basic reduction
+# (removal of obviously unwanted cases usch as those classified by the CCC as
+# "Junk") and then uses vocabularly lists to determine which cases deal with
+# media and which cases (via a junk word list) do not. The remaining cases are
+# then written out to a file that is the main input file for P2 - Media Cases.
 #
-#-----------------------------------------------------------------------------
+#*****************************************************************************
 
+#
 # Import libraries
+#
 library(tidyverse)
 library(tidyr)
 library(plyr)

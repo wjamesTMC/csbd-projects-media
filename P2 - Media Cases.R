@@ -1,19 +1,27 @@
 ##############################################################################
 #
-# Media Analysis - CCC Vocabulary extractioN
+# Media Analysis - CCC Case Vocabulary tabulation
 # Bill James / jamesw@csps.com
 #
 # Files:  https://github.com/wjamesTMC/csbd-projects-media.git
 #
 ##############################################################################
 
-#-----------------------------------------------------------------------------
+#*****************************************************************************
 #
-# Library setups
+# This program takes the output of the Media Reduction program, which removes
+# unnecessary cases from the input file (e.g., "Out of the Office") and then
+# tests the resulting cases for media vocabulary. This program then looks at
+# each case and counts the occurrences of media wods, product references, and 
+# positive and negative words. Through a series of joins, it produces several
+# output files that give various cuts for manual review based on those cases
+# with the highest numbers of media words and product references.
 #
-#-----------------------------------------------------------------------------
+#*****************************************************************************
 
+#
 # Import libraries
+#
 library(tidyverse)
 library(tidyr)
 library(plyr)
