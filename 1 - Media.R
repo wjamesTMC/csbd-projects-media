@@ -41,71 +41,376 @@ library(googlesheets)
 #--------------------------------------------------------------------
 
 #
-# CCC File
+# Open and process the CCC File
 #
 
+# Open the set of cases and read iut in
 inp_dat <- read.csv("Cases.csv", stringsAsFactors = FALSE)
-# str(inp_data)
 
-# Reduce the file size to just 50 cases to speed up work
-inp_dat <- inp_dat[1:50, ]  
-
-# Keep selected fields
+# Keep just the fields we need
 wkg_dat <- inp_dat %>% select(Parent.Case.ID, Case.Origin, Description, Subject)
-# str(wkg_dat)
 
-# Create a column to identify cases we want to keep
-media_case <- c(1:nrow(wkg_dat))
-
-# Add new column to data
-wkg_dat <- cbind(wkg_dat, mc = media_case)     
-
-# unq_case_origins <- unique(wkg_dat$Case.Origin) # 56 unique case origins
-# unq_subjects <- unique(wkg_dat$Subject)         # 59084 unique subjects
+# Reduce the file size to speed up work (randomly select 25% of the cases)
+case_index  <- createDataPartition(y = wkg_dat$Case.Origin, times = 1, p = 0.25, list = FALSE)
+wkg_dat <- wkg_dat[case_index, ]
 
 #
-# Detect instances where a case has a media term
+# Detect instances where a case has a vocabulary term we want
 #
+
+# Set up a list of words to search for in the cases
 detect_media <- c("audio",
                   "digital",
                   "CD",
-                  "telephone",
-                  "iTune",
+                  "elephone",
+                  "iTunes",
+                  "media",
                   "Spotify",
-                  "playlist",
+                  "laylist",
                   "Alexa",
-                  "smart speaker")
+                  "mart speaker",
+                  "available in",
+                  "format",
+                  "share",
+                  "idea")
 
-# Check each of the words against the Description fields
-Pattern = paste(detect_media, collapse = "|")
-result <- grepl(Pattern, wkg_dat$Description)
+# Check each of the words against the Description field
+pattern_m = paste(detect_media, collapse = "|")
+result_md <- grepl(pattern_m, wkg_dat$Description)
+
+# Now check the same list of words against the Subject field
+result_ms <- grepl(pattern_m, wkg_dat$Subject)
 
 # Count the number of TRUE results
-ntrues <- table(result)["TRUE"]
+n_md_trues <- table(result_md)["TRUE"]
+n_ms_trues <- table(result_ms)["TRUE"]
+
+# find the longer of the two results so we can build a dataframe the right size
+if (n_md_trues > n_ms_trues) {
+     len_trues <- n_md_trues
+} else {
+     len_trues <- n_ms_trues
+}
 
 # Build dataframe
-vocab_df <- data.frame("wkg_dat_id"    = ntrues,
-                       "seq_id"        = ntrues,
-                       "desc"          = ntrues,
-                       "subj"          = ntrues)
+vocab_df <- data.frame("wkg_dat_id"    = len_trues,
+                       "seq_id"        = len_trues,
+                       "desc"          = len_trues,
+                       "subj"          = len_trues,
+                       "media_case"    = len_trues)
 
-# If a word does show up, save off the result
-
+# If a word does show up, save off the result and mark it
 for(i in 1:nrow(wkg_dat)) {
-     if(result[i] == TRUE) {
+     if(result_md[i] == TRUE) {
           vocab_df[i, 1]   <- wkg_dat$Parent.Case.ID[i]
           vocab_df[i, 2]   <- i
           vocab_df[i, 3]   <- wkg_dat$Description[i]
           vocab_df[i, 4]   <- wkg_dat$Subject[i]
+          vocab_df[i, 5]   <- "M"
      } 
 }
 
+# Repeat for the subject field
+for(i in 1:nrow(wkg_dat)) {
+     if(result_ms[i] == TRUE) {
+          vocab_df[i, 1]   <- wkg_dat$Parent.Case.ID[i]
+          vocab_df[i, 2]   <- i
+          vocab_df[i, 3]   <- wkg_dat$Description[i]
+          vocab_df[i, 4]   <- wkg_dat$Subject[i]
+          vocab_df[i, 5]   <- "M"
+     } 
+}
+
+#
+# Detect cases we want to throw out
+#
+
+# Create the list of words and phrases like we did before
+detect_custs <- c("Thank you for your support of Longyear!",
+                  "Hudson in the News:",
+                  "Important Information Regarding Your Account",
+                  "Evolution of Yahoo Groups",
+                  "or more information contact",
+                  "CNBC",
+                  "Text or Call",
+                  "text or call",
+                  "oronavirus",
+                  "Covid",
+                  "COVID",
+                  "contagion",
+                  "isinfectant",
+                  "2020 Season",
+                  "TELEMUNDO",
+                  "telemundo",
+                  "Royal United Services Institute",
+                  "thealtmanbrothers.com",
+                  "Auto Reply",
+                  "Zogby Report",
+                  "For Immediate Release",
+                  "Crossroads Career",
+                  "pply now",
+                  "South Tulsa Charmer",
+                  "yours in Christ",
+                  "Yours in Christ",
+                  "Delivery Status Notification (Failure)",
+                  "RN Public Relations Group",
+                  "Author Solutions Inc",
+                  "Green Party",
+                  "Republican", 
+                  "Democratic",
+                  "pdate credit card",
+                  "Automatic Renewal Reminder",
+                  "graduation gift",
+                  "Release Completed:",
+                  "Press release",
+                  "news release",
+                  "For immediate release",
+                  "management@rmfriedland.com",
+                  "robly.com",
+                  "catalystresourcegroup.com",
+                  "pdated member information",
+                  "ditorial comments and corrections",
+                  "Department of Mental Health",
+                  ".gov",
+                  "utexas.edu",
+                  "MassDOT",
+                  "Associated Press",
+                  "CBS Evening News",
+                  "Reuters",
+                  "PR Newswire",
+                  "UPDATE:",
+                  "Follow us on Facebook",
+                  "Log In",
+                  "log in",
+                  "log out",
+                  "Log Out",
+                  "purchased in advance",
+                  "iew this email in your browser",
+                  "urvey request",
+                  "now open",
+                  ".co.uk",
+                  "FOR IMMEDIATE PUBLIC RELEASE",
+                  "ABCD.agency",
+                  "404: EMAIL not unique",
+                  "Warning",
+                  "warning",
+                  "I am away",
+                  "Better Business Bureau",
+                  "BBB",
+                  "Nova Scotia Defence and Security",
+                  "latticepublishing.com",
+                  "did not include any attachments",
+                  "Christian Television",
+                  ".com.tw",
+                  ".ru",
+                  "armenianchurch",
+                  "======",
+                  "Halloween",
+                  "Press call",
+                  "Automatic Renewal Reminder",
+                  "cspsnews@csps.com",
+                  "Editorial comments and corrections: Headlines",
+                  "POLITICO",
+                  "momentum for growth",
+                  "Clock Collector's Paradise",
+                  "Microsoft 2020 Training",
+                  "Kozhikode's",
+                  "BREAKING:",
+                  "Mental Health",
+                  "Blackwoods",
+                  "Faith-Based",
+                  "estatesalesplus.com",
+                  "Strategic Relations",
+                  "rmfriedland.com",
+                  "Give the Gift of Christmas",
+                  "NEWS RELEASE",
+                  "Services for Artists",
+                  "PRWorkzone",
+                  "Updating Credit details",
+                  "Netflix",
+                  "ounninaneang@gmail.com",
+                  "Planned Parenthood",
+                  "pdates from",
+                  "Supreme Court",
+                  "Ascot Media Group",
+                  "@lung.org",
+                  "email.kingdom.com",
+                  "ievapor.com",
+                  "Dear Beneficiary",
+                  "your congregation",
+                  "challengerwealth.com",
+                  "SMITH PUBLICITY",
+                  "Security Vulnerability Notification",
+                  "NEWS STORY:",
+                  ".itsliquid.com",
+                  "million",
+                  "auto-btob.com",
+                  "Purchase Order",
+                  ".cobracanine.com",
+                  "passed on",
+                  "To: Undisclosed",
+                  "Annual Meeting",
+                  "CMM Enewsletter",
+                  "Working remotely",	
+                  "Google Business",	
+                  "Google business",
+                  "Easter",
+                  "Change of Address",	
+                  "Application for Permission",	
+                  "echo chamber",	
+                  "Biden",	
+                  "not unique",	
+                  "nhancement of",	
+                  "NEW STUDY",	
+                  "new study",
+                  "Phone Number Update",	
+                  "onsters",	
+                  "Show Guests",	
+                  "show guests",
+                  "Away from the office",	
+                  "Automatic Response",	
+                  "Ecumenical",	
+                  "ecumenical",
+                  "Account Access",	
+                  "vangelizers",	
+                  "Broken Arrow Beauty",	
+                  "eBulletin",	
+                  "irculation",	
+                  "Pasadena",	
+                  "ouble billing",	
+                  "PC Culture",	
+                  "culture",
+                  "Order Confirmation",	
+                  "order confirmation",
+                  "Tax Time",	
+                  "tax time",
+                  "decline notice",	
+                  "ebsite sales",	
+                  "India's",
+                  "Spectacular",	
+                  "spectacular",
+                  "Editas",
+                  "medicine",
+                  "Latest Print-At-Home",	
+                  "Reformation",	
+                  "reformation",
+                  "Inpirational Show",	
+                  "inspirational show",
+                  "failed credit card",	
+                  "US-Iran",	
+                  "Ziopharm",	
+                  "Seabras",	
+                  "Desk & Chair",	
+                  "desk and chair",
+                  "Wine",
+                  "wine",
+                  "Congregation",	
+                  "congregation",
+                  "The National Funding",	
+                  "Grant",
+                  "THL Credit",	
+                  "Writing A Book",	
+                  "writing a book",
+                  "Future Horizons",
+                  "Nicotine",	
+                  "nicotine",
+                  "GRAMMY",	
+                  "Grammy",
+                  "vrier",	
+                  "EMI",	
+                  "Password",	
+                  "Permissions",	
+                  "permissions",
+                  "Undeliverable",	
+                  "Expieration Notice",	
+                  "Que d'amour",	
+                  "Staples",	
+                  "SEO Marketing",	
+                  "Charley Pride",	
+                  "enter to win",	
+                  "Enter to Win",
+                  "blues",	
+                  "besity",	
+                  "Climate change",	
+                  "climate change",
+                  "Acknowlegement Receipt",	
+                  "not unique",	
+                  "manufacturer",	
+                  "xporter",
+                  "Mueller",
+                  "St. Vincent",	
+                  "E&P",	
+                  "Out of Office",	
+                  "Brown Brothers",	
+                  "Credit Card",	
+                  "credit card",
+                  "Supercharge",	
+                  "supercharge",
+                  "USAGM",	
+                  "View this email in your browser",
+                  "COH_Primary",
+                  "Fenway Alliance",	
+                  "Secretary of State",	
+                  "mnesia",
+                  "vocuspr.com",
+                  "the Heights",	
+                  "rganizations",
+                  "Out of the office",	
+                  "Editors",	
+                  "cancel",	
+                  "Medical",	
+                  "mediacal",
+                  "New report",	
+                  "new report",
+                  "Review",
+                  "review",
+                  "PRESIDENTIAL",	
+                  "Donor",	
+                  "donor",
+                  "guest",	
+                  "your order",	
+                  "SPAN",	
+                  "ive at the",	
+                  "new design",	
+                  "extension program",	
+                  "Bible verses",	
+                  "Bible Verses",
+                  "Last Chance",	
+                  "last chance",
+                  "Online shop",	
+                  "Change of address",	
+                  "membership",	
+                  "pdate from",
+                  "ookies")
+
+# Check each of the words against the Subject field
+pattern_c = paste(detect_custs, collapse = "|")
+result_cs <- grepl(pattern_c, vocab_df$subj)
+
+# Check each of the words against the description field
+result_cd <- grepl(pattern_c, vocab_df$desc)
+
+# Loop to narrow to eliminate non-customer originated cases (subjs)
+for(i in 1:nrow(vocab_df)) {
+     if(result_cs[i] == TRUE) {
+          vocab_df[i, 5]   <- "X"
+     } 
+}
+
+# Loop to narrow to eliminate non-customer originated cases (descs)
+for(i in 1:nrow(vocab_df)) {
+     if(result_cd[i] == TRUE) {
+          vocab_df[i, 5]   <- "X"
+     } 
+}
+
+# Remove instances where there are not complete data, if any
 vocab_df <- vocab_df[complete.cases(vocab_df), ]
 
 # Write out a file to examine it
 write.csv(vocab_df,"CCC_results.csv", row.names = FALSE)
 
-##### Loop through and create the list of word occurrences
+#######################################################################s
 
 #
 # Now we need to select the words that are related to media and go back 
